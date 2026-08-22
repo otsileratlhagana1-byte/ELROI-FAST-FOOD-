@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded',function(){const loader=document.getElementById('loader');if(loader){setTimeout(()=>loader.classList.add('hide'),5000)}document.querySelectorAll('[data-auto-submit]').forEach(e=>e.addEventListener('change',()=>e.form&&e.form.submit()));});
