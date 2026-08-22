@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Track Order • ELROI FAST FOOD{% endblock %}
+{% block head %}<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>{% endblock %}
+{% block content %}
+<section class="section"><div class="container" style="max-width:900px">
+{% if not order %}<div class="card" style="padding:28px;text-align:center"><h2>Order not found</h2><p class="muted">Check the order number and try again.</p><button class="btn btn-dark" onclick="history.back()">Try again</button></div>
+{% else %}
+<div class="row"><div><div class="eyebrow">Live order tracking</div><h1 style="margin:4px 0">{{ order['order_no'] }}</h1><div class="muted">{{ order['customer_name'] }} • {{ order['phone'] }}</div></div><span class="badge" id="statusText">{{ dict(statuses).get(order['status'],order['status']) }}</span></div>
+<div class="card" style="padding:20px;margin-top:18px">
+<div class="status-track">
+{% set st=['preparing','almost_done','collect_now','completed'] %}
+{% set idx={'preparing':0,'almost_done':1,'collect_now':2,'completed':3,'cancelled':-1}.get(order['status'],0) %}
+{% for code,label in [('preparing','Preparing'),('almost_done','Almost Done'),('collect_now','Collect Now'),('completed','Completed')] %}
+<div class="step {% if idx >= loop.index0 and order['status']!='cancelled' %}active{% endif %}">{{ label }}</div>
+{% endfor %}
+</div>
+{% if order['status']=='cancelled' %}<div class="option" style="margin-top:14px">This order has been cancelled. Please contact ELROI.</div>{% endif %}
+<div style="text-align:center;margin:24px 0"><svg id="barcode"></svg><div class="muted">Show this barcode/order number at collection</div></div>
+</div>
+<div class="two" style="margin-top:18px"><div class="card" style="padding:20px"><h3>Order items</h3>{% for x in items %}<div class="option"><b>{{ x['qty'] }} × {{ x['name'] }}</b><div class="muted">R{{ '%.2f'|format(x['unit_price']*x['qty']) }}</div>{% if x['removals'] %}<small>Remove: {{ x['removals'] }}</small>{% endif %}{% if x['additions'] %}<small> Add: {{ x['additions'] }}</small>{% endif %}</div>{% endfor %}</div>
+<div class="card" style="padding:20px"><h3>Collection</h3><p>Payment: <b>{{ 'Card' if order['method']=='card' else 'Cash' }}</b></p><p>Payment status: <b>{{ order['payment_status'].replace('_',' ')|title }}</b></p><h2>R{{ '%.2f'|format(order['total']) }}</h2><p class="muted">Last update: {{ order['updated_at'] }}</p></div></div>
+{% endif %}
+</div></section>
+{% endblock %}
+{% block scripts %}
+{% if order %}
+<script>
+JsBarcode("#barcode","{{ order['order_no'] }}",{format:"CODE128",displayValue:true,fontSize:18,height:75,margin:8});
+setInterval(async()=>{let r=await fetch('/status/{{ order["order_no"] }}');if(!r.ok)return;let d=await r.json();if(d.ok){document.getElementById('statusText').textContent=({'preparing':'Preparing','almost_done':'Almost Done','collect_now':'Collect Now','completed':'Completed','cancelled':'Cancelled'})[d.status]||d.status;if(d.status==='collect_now')document.title='Collect Now • ELROI FAST FOOD'}},10000);
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}ELROI FAST FOOD • Order Online{% endblock %}
+{% block content %}
+<div id="loader" class="loading"><img src="{{ url_for('static',filename='logo.png') }}"><h2 style="margin:8px 0">Good Food, Good Mood</h2><div class="spinner"></div><small style="margin-top:12px;color:#aaa">Preparing your menu…</small></div>
+<section class="hero"><div class="container hero-grid">
+<div><div class="eyebrow">ELROI FAST FOOD</div><h1>Big meals.<br>Big mood.</h1><p>Order your favourite kota, chips, burgers, toasted sandwiches, pap, rice and ice cream for quick collection.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-red" href="#menu">Order now</a><a class="btn btn-light" href="https://wa.me/{{ settings.get('whatsapp','+27643981061').replace('+','') }}">WhatsApp us</a></div></div>
+<div class="hero-card"><img src="{{ url_for('static',filename='logo.png') }}"><div class="row"><span>Collection</span><b>Cash or card</b></div><div class="row" style="margin-top:8px"><span>Delivery</span><b>Coming soon</b></div></div>
+</div></section>
+<main id="menu" class="container">
+{% for cat,products in grouped.items() %}
+{% if products %}
+<section class="section"><div class="section-title"><h2>{{ cat }}</h2><span class="muted">{{ products|length }} items</span></div>
+<div class="grid">
+{% for p in products %}
+<div class="card">
+{% if p['image'] %}<div class="product-img"><img src="{{ url_for('static',filename='uploads/'+p['image']) }}" alt="{{ p['name'] }}"></div>{% endif %}
+<div class="card-body">
+<div class="muted" style="font-size:12px">{{ p['category'] }}</div><h3 style="margin:5px 0 7px">{{ p['name'] }}</h3>
+{% if p['description'] %}<div class="muted" style="font-size:13px;line-height:1.4">{{ p['description'] }}</div>{% endif %}
+<div class="row" style="margin-top:14px"><span class="price">R{{ '%.2f'|format(p['price']) }}</span><button class="btn btn-dark" onclick="openProduct({{ p['id'] }})">Add to cart</button></div>
+</div></div>
+{% endfor %}
+</div></section>
+{% endif %}
+{% endfor %}
+<section class="section"><div class="card" style="padding:20px"><div class="row"><div><b>Ice cream</b><div class="muted">Cone R9.00 • Cup R11.00</div></div><span class="badge">Sweet finish</span></div></div></section>
+</main>
+<button class="cart-fab" onclick="openCart()">Cart <span id="cartCount" class="badge">0</span></button>
+<div id="productModal" class="modal"><div class="sheet">
+<div class="row"><div><div class="muted" id="pmCat"></div><h2 id="pmName" style="margin:3px 0"></h2><div class="price" id="pmPrice"></div></div><button class="btn btn-light" onclick="closeModal('productModal')">×</button></div>
+<div id="pmDesc" class="muted" style="margin:8px 0 15px"></div>
+<div class="form">
+<label><b>Quantity</b><input id="pmQty" class="input" type="number" min="1" max="50" value="1"></label>
+<div id="removeBox"></div><div id="addBox"></div>
+<label><b>Special request</b><textarea id="pmNote" class="textarea" placeholder="Anything else for this meal?"></textarea></label>
+<button class="btn btn-red" onclick="addConfigured()">Add to cart</button>
+</div></div></div>
+<div id="cartModal" class="modal"><div class="sheet">
+<div class="row"><h2>Your order</h2><button class="btn btn-light" onclick="closeModal('cartModal')">×</button></div>
+<div id="cartItems"></div><div id="cartTotal" style="font-size:22px;font-weight:950;text-align:right;margin:15px 0"></div>
+<div class="two"><button class="btn btn-light" onclick="clearCart()">Clear cart</button><a class="btn btn-red" href="{{ url_for('checkout') }}" style="text-align:center">Continue to checkout</a></div>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+let cart=JSON.parse(localStorage.getItem('elroi_cart')||'[]'), currentProduct=null;
+const csrf="{{ csrf_token }}";
+function saveCart(){localStorage.setItem('elroi_cart',JSON.stringify(cart));renderCart();document.getElementById('cartCount').textContent=cart.reduce((s,x)=>s+x.qty,0)}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function openCart(){renderCart();document.getElementById('cartModal').classList.add('open')}
+function openProduct(id){
+fetch('/api/product/'+id).then(r=>r.json()).then(p=>{
+ currentProduct=p;document.getElementById('pmName').textContent=p.name;document.getElementById('pmCat').textContent=p.category;document.getElementById('pmPrice').textContent='R'+Number(p.price).toFixed(2);document.getElementById('pmDesc').textContent=p.description||'';
+ document.getElementById('pmQty').value=1;document.getElementById('pmNote').value='';
+ let rb='<b>Remove ingredients</b>';
+ if(p.remove_options.length){rb+='<div class="option">'+p.remove_options.map((x,i)=>`<label style="display:block;margin:7px 0"><input type="checkbox" class="rem" value="${esc(x)}"> Remove ${esc(x)}</label>`).join('')+'</div>'}
+ else rb+='<div class="muted">No removal options set.</div>';
+ document.getElementById('removeBox').innerHTML=rb;
+ let ab='<b>Add extras</b>';
+ if(p.add_options.length){ab+='<div class="option">'+p.add_options.map(x=>`<label style="display:block;margin:7px 0"><input type="checkbox" class="add" data-price="${x.price}" value="${esc(x.name)}"> ${esc(x.name)} +R${Number(x.price).toFixed(2)}</label>`).join('')+'</div>'}
+ else ab+='<div class="muted">No extras available.</div>';
+ document.getElementById('addBox').innerHTML=ab;
+ document.getElementById('productModal').classList.add('open');
+ });
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function addConfigured(){
+ if(!currentProduct)return;
+ let qty=Math.max(1,Math.min(50,parseInt(document.getElementById('pmQty').value)||1));
+ let removals=[...document.querySelectorAll('.rem:checked')].map(x=>x.value);
+ let additions=[...document.querySelectorAll('.add:checked')].map(x=>({name:x.value,price:Number(x.dataset.price)}));
+ let addTotal=additions.reduce((s,x)=>s+x.price,0);
+ cart.push({product_id:currentProduct.id,name:currentProduct.name,category:currentProduct.category,base_price:Number(currentProduct.price),qty,unit_price:Number(currentProduct.price)+addTotal,removals,additions,special_note:document.getElementById('pmNote').value.trim()});
+ saveCart();closeModal('productModal');openCart();
+}
+function renderCart(){
+ let box=document.getElementById('cartItems');if(!box)return;
+ if(!cart.length){box.innerHTML='<div class="muted" style="padding:25px 0">Your cart is empty.</div>';document.getElementById('cartTotal').textContent='R0.00';return}
+ let total=0;
+ box.innerHTML=cart.map((x,i)=>{let t=x.unit_price*x.qty;total+=t;return `<div class="option"><div class="row"><div><b>${esc(x.name)}</b><div class="muted">${x.qty} × R${x.unit_price.toFixed(2)}</div><small>${x.removals.length?'Remove: '+esc(x.removals.join(', ')):''} ${x.additions.length?' • Add: '+esc(x.additions.map(a=>a.name).join(', ')):''}</small></div><div style="text-align:right"><b>R${t.toFixed(2)}</b><br><button class="btn btn-light" onclick="removeCart(${i})">Remove</button></div></div></div>`}).join('');
+ document.getElementById('cartTotal').textContent='Total R'+total.toFixed(2);
+}
+function removeCart(i){cart.splice(i,1);saveCart()}
+function clearCart(){cart=[];saveCart();renderCart()}
+saveCart();
+setTimeout(()=>{document.getElementById('loader').style.display='none'},5000);
+</script>
+{% endblock %}

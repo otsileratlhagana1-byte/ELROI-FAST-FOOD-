@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Creator Dashboard • ELROI FAST FOOD{% endblock %}
+{% block content %}
+<div class="container admin-wrap"><div class="row"><div><div class="eyebrow">Control centre</div><h1 style="margin:4px 0">Creator Dashboard</h1><div class="muted">Maintain the website and control admin access.</div></div><a class="btn btn-dark" href="{{ url_for('logout') }}">Logout</a></div>
+<section class="section"><div class="two">
+<div class="card" style="padding:20px"><h2>Website settings</h2><form method="post" action="{{ url_for('creator_settings') }}" class="form"><input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<input class="input" name="shop_name" value="{{ settings.get('shop_name','ELROI FAST FOOD') }}" placeholder="Shop name"><input class="input" name="tagline" value="{{ settings.get('tagline','Good Food, Good Mood') }}"><input class="input" name="whatsapp" value="{{ settings.get('whatsapp','+27643981061') }}" placeholder="Order WhatsApp">
+<input class="input" name="contact" value="{{ settings.get('contact','069 1660 040') }}" placeholder="Contact number">
+<label class="option"><input type="checkbox" name="maintenance" value="1" {% if settings.get('maintenance')=='1' %}checked{% endif %}> Maintenance mode (customer website temporarily closed)</label>
+<h3>Card payment</h3><p class="muted">Do not store customers' card numbers or CVV. Put a secure payment-provider checkout link here (for example a hosted PayFast/Stripe checkout link).</p>
+<input class="input" name="card_payment_url" value="{{ settings.get('card_payment_url','') }}" placeholder="https://secure-payment-provider.example/your-checkout">
+<input class="input" name="card_payment_label" value="{{ settings.get('card_payment_label','Pay securely by card before collection') }}">
+<button class="btn btn-red">Save settings</button></form></div>
+<div class="card" style="padding:20px"><h2>Staff accounts</h2><p class="muted">Create or change Admin and Creator accounts. Use strong passwords before deployment.</p>
+<form method="post" action="{{ url_for('creator_user') }}" class="form"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input class="input" name="username" placeholder="New username" required><input class="input" name="password" type="password" placeholder="New password" required><select class="select" name="role"><option>admin</option><option>creator</option></select><button class="btn btn-dark">Create account</button></form>
+<hr style="border:0;border-top:1px solid #eee;margin:22px 0">
+{% for u in users %}<div class="option"><div class="row"><div><b>{{ u['username'] }}</b><div class="muted">{{ u['role']|title }} • {{ 'Active' if u['active'] else 'Disabled' }}</div></div><form method="post" action="{{ url_for('creator_user_toggle',uid=u['id']) }}"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button class="btn btn-light">{{ 'Disable' if u['active'] else 'Enable' }}</button></form></div></div>{% endfor %}
+</div></div></section>
+<section class="section"><div class="card" style="padding:22px"><h2>How the store works</h2><div class="three"><div><b>1. Customer orders</b><p class="muted">They choose quantity, remove ingredients, add extras and checkout.</p></div><div><b>2. Admin prepares</b><p class="muted">Admin sets Preparing → Almost Done → Collect Now → Completed.</p></div><div><b>3. Customer collects</b><p class="muted">Customer shows the order number/barcode. Admin can scan it.</p></div></div></div></section>
+</div>
+{% endblock %}

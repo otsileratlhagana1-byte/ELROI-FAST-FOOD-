@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Staff Login • ELROI FAST FOOD{% endblock %}
+{% block content %}<div class="auth"><div class="authbox"><div style="text-align:center"><img src="{{ url_for('static',filename='logo.png') }}" style="width:90px;height:90px;object-fit:contain"><h2>Staff portal</h2><p class="muted">Admin and creator access</p></div>
+{% with messages=get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="option" style="color:#b00020">{{ msg }}</div>{% endfor %}{% endwith %}
+<form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input class="input" name="username" placeholder="Username" required><input class="input" type="password" name="password" placeholder="Password" required><button class="btn btn-dark">Sign in</button></form>
+<p class="muted" style="font-size:12px;margin-top:15px">Change the default credentials from Creator dashboard before going live.</p></div></div>{% endblock %}

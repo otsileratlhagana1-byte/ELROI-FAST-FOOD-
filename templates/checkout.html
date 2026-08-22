@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Checkout • ELROI FAST FOOD{% endblock %}
+{% block content %}
+<section class="section"><div class="container two">
+<div><div class="eyebrow">Secure collection checkout</div><h1>Finish your order</h1><p class="muted">Choose cash at collection or pay by card before collection. Delivery is coming soon.</p>
+<div class="card" style="padding:18px"><h3>Payment & collection</h3><label class="option"><input type="radio" name="method" value="cash" checked> <b>Cash & collect</b><div class="muted">Pay cash when you collect.</div></label>
+<label class="option"><input type="radio" name="method" value="card"> <b>Card before collection</b><div class="muted">You'll be sent to the secure card payment link configured by ELROI.</div></label></div></div>
+<div class="card" style="padding:22px"><h2>Your details</h2><form id="checkoutForm" class="form">
+<input id="name" class="input" placeholder="Full name" required><input id="phone" class="input" placeholder="Phone / WhatsApp number" required><input id="email" class="input" type="email" placeholder="Email (optional)">
+<textarea id="notes" class="textarea" placeholder="Order notes"></textarea>
+<div id="checkoutItems"></div><div id="checkoutTotal" style="font-size:24px;font-weight:950;text-align:right"></div>
+<input type="hidden" id="csrf" value="{{ csrf_token }}">
+<button class="btn btn-red" type="submit">Place order</button>
+<div id="msg"></div></form></div>
+</div></section>
+{% endblock %}
+{% block scripts %}
+<script>
+const cart=JSON.parse(localStorage.getItem('elroi_cart')||'[]');
+const total=cart.reduce((s,x)=>s+x.unit_price*x.qty,0);
+const box=document.getElementById('checkoutItems');
+if(!cart.length){box.innerHTML='<div class="option">Your cart is empty. <a href="/" style="text-decoration:underline">Return to menu</a></div>';document.querySelector('#checkoutForm button').disabled=true}
+else{
+ box.innerHTML=cart.map(x=>`<div class="option"><b>${x.qty} × ${x.name}</b><div class="muted">R${(x.unit_price*x.qty).toFixed(2)}</div></div>`).join('');
+ document.getElementById('checkoutTotal').textContent='Total R'+total.toFixed(2);
+}
+document.getElementById('checkoutForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!cart.length)return;
+ const msg=document.getElementById('msg');msg.innerHTML='<div class="muted">Placing your order…</div>';
+ const method=document.querySelector('input[name="method"]:checked').value;
+ const payload={_csrf:document.getElementById('csrf').value,customer_name:document.getElementById('name').value,phone:document.getElementById('phone').value,email:document.getElementById('email').value,notes:document.getElementById('notes').value,method,items:cart};
+ try{
+  let r=await fetch('/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
+  if(!d.ok)throw new Error(d.error||'Could not place order');
+  localStorage.removeItem('elroi_cart');
+  let wa='https://wa.me/'+d.whatsapp.replace(/\D/g,'')+'?text='+encodeURIComponent(d.message);
+  let paymentNote=method==='card' ? (d.payment_url?`<a class="btn btn-red" href="${d.payment_url}" target="_blank">Pay by card now</a>`:'<div class="option">Card payment link has not been configured yet. Please contact ELROI.</div>') : '<div class="option">Bring cash when you collect.</div>';
+  msg.innerHTML=`<div class="card" style="margin-top:14px;padding:20px"><div class="eyebrow">Order confirmed</div><h2>${d.order_no}</h2><div class="qr">${d.order_no}</div><p>Total: <b>R${Number(d.total).toFixed(2)}</b></p>${paymentNote}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn btn-dark" href="/track/${d.order_no}">Track order</a><a class="btn btn-light" href="${wa}" target="_blank">Send order on WhatsApp</a></div><p class="muted">Keep your order number and show it at collection. Admin can scan it from the scanner.</p></div>`;
+  e.target.querySelectorAll('input,textarea,button').forEach(x=>x.disabled=true);
+ }catch(err){msg.innerHTML='<div class="option" style="color:#b00020">'+err.message+'</div>'}
+});
+</script>
+{% endblock %}

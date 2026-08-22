@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Scan Order • ELROI FAST FOOD{% endblock %}
+{% block head %}<script src="https://unpkg.com/html5-qrcode" defer></script>{% endblock %}
+{% block content %}
+<section class="section"><div class="container" style="max-width:760px"><div class="row"><div><div class="eyebrow">Collection desk</div><h1>Scan order</h1><p class="muted">Point the phone camera at the customer's barcode, or enter the order number manually.</p></div><a class="btn btn-light" href="{{ url_for('admin_dashboard') }}">Back</a></div>
+<div class="card" style="padding:20px;margin-top:18px"><div id="reader" style="width:100%"></div><div class="two" style="margin-top:15px"><input id="manual" class="input" placeholder="ELR-260822-AB12"><button class="btn btn-dark" onclick="lookup(document.getElementById('manual').value)">Look up order</button></div><div id="result" style="margin-top:15px"></div></div></div></section>
+{% endblock %}
+{% block scripts %}
+<script>
+function lookup(n){n=(n||'').trim().toUpperCase();if(!n)return;fetch('/status/'+encodeURIComponent(n)).then(r=>r.json()).then(d=>{let b=document.getElementById('result');if(!d.ok){b.innerHTML='<div class="option">Order not found.</div>';return}b.innerHTML=`<div class="option"><h3 style="margin-top:0">${n}</h3><p>Total: <b>R${Number(d.total).toFixed(2)}</b></p><p>Status: <b>${d.status.replace('_',' ')}</b></p><p>Payment: <b>${d.payment_status.replace('_',' ')}</b></p><a class="btn btn-red" href="/track/${n}" target="_blank">Open order</a></div>`})}
+window.addEventListener('load',()=>{
+ if(typeof Html5Qrcode==='undefined')return;
+ const scanner=new Html5Qrcode("reader");
+ scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:120}},txt=>{lookup(txt);scanner.stop().catch(()=>{})},()=>{}).catch(()=>{document.getElementById('reader').innerHTML='<div class="muted">Camera scanner unavailable. Use the manual order number field.</div>'});
+});
+</script>
+{% endblock %}
